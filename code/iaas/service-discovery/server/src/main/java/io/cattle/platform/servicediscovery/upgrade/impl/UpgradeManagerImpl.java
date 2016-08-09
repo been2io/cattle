@@ -534,9 +534,11 @@ public class UpgradeManagerImpl implements UpgradeManager {
             toStop.addAll(deploymentUnitInstancesToStop.get(key));
         }
         for (Instance instance : toStop) {
+        	Map stopConfig=new HashMap();
+        	stopConfig.put("timeout", 30);
             if (!instance.getState().equalsIgnoreCase(InstanceConstants.STATE_STOPPED)) {
                 objectProcessMgr.scheduleProcessInstanceAsync(InstanceConstants.PROCESS_STOP,
-                        instance, null);
+                        instance, stopConfig);
             }
         }
         for (Instance instance : toStop) {

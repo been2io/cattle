@@ -39,7 +39,7 @@ build()
         fi
     fi
 
-    mvn ${MAVEN_ARGS} ${RELEASE_ARGS} ${MAVEN_TARGET:-install}
+    mvn -DskipTests ${MAVEN_ARGS} ${RELEASE_ARGS} ${MAVEN_TARGET:-install}
     mkdir -p dist/artifacts
 
     local target=dist/artifacts/cattle.jar
