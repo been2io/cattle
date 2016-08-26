@@ -138,14 +138,14 @@ public class UpgradeManagerImpl implements UpgradeManager {
                     waitForHealthyState(service);
                 }
                 // mark for upgrade
-                markForUpgrade(batchSize);
-
                 if (startFirst) {
+                	markForUpgrade(batchSize);
                     // 1. reconcile to start new instances
                     deploymentMgr.activate(service);
                     // 2. stop instances
                     stopInstances(deploymentUnitInstancesToCleanup);
                 } else {
+                	markForUpgrade(batchSize());
                     // reverse order
                     // 1. stop instances
                     stopInstances(deploymentUnitInstancesToCleanup);
@@ -156,7 +156,24 @@ public class UpgradeManagerImpl implements UpgradeManager {
                     waitForHealthyState(service);
                 }
             }
-
+            
+            protected long batchSize(){
+            	 List<Instance> cleanUp = new ArrayList<>();
+            	 int cleanUpSize=0;
+                 for (String key : deploymentUnitInstancesToCleanup.keySet()) {
+                     cleanUpSize+=deploymentUnitInstancesToCleanup.get(key).size();
+                 }
+                 int managedSize=0;
+                 for (String key :deploymentUnitInstancesUpgradedManaged.keySet()){
+                	 managedSize+=deploymentUnitInstancesUpgradedManaged.get(key).size();
+                 }
+                 int unmanagedSize=0;
+                 for (String key :deploymentUnitInstancesUpgradedUnmanaged.keySet()){
+                	 unmanagedSize+=deploymentUnitInstancesUpgradedUnmanaged.get(key).size();
+                 }
+                 return batchSize-cleanUpSize+managedSize+unmanagedSize;
+                 
+            }
             protected void markForUpgrade(final long batchSize) {
                 markForCleanup(batchSize, fullUpgrade);
             }
