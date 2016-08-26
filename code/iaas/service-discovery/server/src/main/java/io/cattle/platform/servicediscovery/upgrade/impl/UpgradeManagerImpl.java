@@ -158,20 +158,25 @@ public class UpgradeManagerImpl implements UpgradeManager {
             }
             
             protected long batchSize(){
-            	 List<Instance> cleanUp = new ArrayList<>();
             	 int cleanUpSize=0;
-                 for (String key : deploymentUnitInstancesToCleanup.keySet()) {
-                     cleanUpSize+=deploymentUnitInstancesToCleanup.get(key).size();
+            	 for (String key :deploymentUnitInstancesToCleanup.keySet()){
+                	 cleanUpSize+=deploymentUnitInstancesToCleanup.get(key).size();
                  }
                  int managedSize=0;
                  for (String key :deploymentUnitInstancesUpgradedManaged.keySet()){
-                	 managedSize+=deploymentUnitInstancesUpgradedManaged.get(key).size();
+                	 List<Instance> managedInstance=deploymentUnitInstancesUpgradedManaged.get(key);
+                	 for(int i=0;i<managedInstance.size();i++){
+                		 if( InstanceConstants.STATE_RUNNING.equals(managedInstance.get(i).getState())){
+                			 managedSize=managedSize+1;
+                		 }
+                	 }
                  }
                  int unmanagedSize=0;
                  for (String key :deploymentUnitInstancesUpgradedUnmanaged.keySet()){
                 	 unmanagedSize+=deploymentUnitInstancesUpgradedUnmanaged.get(key).size();
                  }
-                 return batchSize-cleanUpSize+managedSize+unmanagedSize;
+                 long size=batchSize-cleanUpSize+managedSize+unmanagedSize;
+                 return size <batchSize?size:batchSize;
                  
             }
             protected void markForUpgrade(final long batchSize) {
