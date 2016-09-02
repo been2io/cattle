@@ -3,6 +3,8 @@ package io.cattle.platform.servicediscovery.api.filter;
 import io.cattle.platform.core.addon.InServiceUpgradeStrategy;
 import io.cattle.platform.core.addon.ServiceUpgrade;
 import io.cattle.platform.core.addon.ServiceUpgradeStrategy;
+import io.cattle.platform.core.addon.InstanceHealthCheck.Strategy;
+import io.cattle.platform.core.model.Environment;
 import io.cattle.platform.core.model.Service;
 import io.cattle.platform.iaas.api.filter.common.AbstractDefaultResourceManagerFilter;
 import io.cattle.platform.json.JsonMapper;
@@ -50,7 +52,6 @@ public class ServiceUpgradeValidationFilter extends AbstractDefaultResourceManag
             Service service = objectManager.loadResource(Service.class, request.getId());
             ServiceUpgrade upgrade = jsonMapper.convertValue(request.getRequestObject(),
                     ServiceUpgrade.class);
-
             ServiceUpgradeStrategy strategy = upgrade.getStrategy();
             if (strategy == null) {
                 ValidationErrorCodes.throwValidationError(ValidationErrorCodes.MISSING_REQUIRED,
@@ -62,12 +63,13 @@ public class ServiceUpgradeValidationFilter extends AbstractDefaultResourceManag
 
         return super.resourceAction(type, request, next);
     }
-
+    
     @SuppressWarnings("unchecked")
     protected void processInServiceUpgradeStrategy(ApiRequest request, Service service, ServiceUpgrade upgrade,
             ServiceUpgradeStrategy strategy) {
         if (strategy instanceof InServiceUpgradeStrategy) {
             InServiceUpgradeStrategy inServiceStrategy = (InServiceUpgradeStrategy) strategy;
+            setDefaultConstraint(service,inServiceStrategy);
             inServiceStrategy = validateUpgrade(service, inServiceStrategy);
             setVersion(inServiceStrategy);
             
@@ -85,7 +87,23 @@ public class ServiceUpgradeValidationFilter extends AbstractDefaultResourceManag
         }
         objectManager.persist(service);
     }
-
+    public final static String SCH_LABEL_NE="io.rancher.scheduler.affinity:container_label_soft_ne";
+    public void setDefaultConstraint(Service service,InServiceUpgradeStrategy strategy){
+    	Environment ev=objectManager.loadResource(Environment.class, service.getEnvironmentId());
+    	String name="io.rancher.stack_service.name="+ev.getName()+"/"+service.getName();
+        Map launchConfig=(Map)strategy.getLaunchConfig();
+        Map labels=(Map)launchConfig.get("labels");
+        Object sch=labels.get(SCH_LABEL_NE);
+        if(sch!=null){
+        	String schedulingString=sch.toString();
+        	if(!schedulingString.contains(name)){
+        		schedulingString=schedulingString+","+name;
+        		labels.put(SCH_LABEL_NE, schedulingString);
+        	}
+        }else{
+            labels.put(SCH_LABEL_NE, name );
+        }
+    }
     protected void setVersion(InServiceUpgradeStrategy upgrade) {
         String version = UUID.randomUUID().toString();
         if (upgrade.getSecondaryLaunchConfigs() != null) {
