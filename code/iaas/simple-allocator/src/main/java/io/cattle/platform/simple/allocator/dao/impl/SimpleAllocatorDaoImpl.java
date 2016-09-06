@@ -54,16 +54,19 @@ public class SimpleAllocatorDaoImpl extends AbstractJooqDao implements SimpleAll
             AllocationCandidateCallback callback) {
         final Cursor<Record2<Long, Long>> cursor;
         if(hosts){
-        	
-        	Table<Record4<Long, Long, Long, Integer>> availableHosts=create().
-    		select(HOST.ID,HOST.ACCOUNT_ID,HOST.AGENT_ID,INSTANCE_NUM_PER_HOST).
-    		from(HOST).
-    		leftOuterJoin(INSTANCE_HOST_MAP)
+        	Table<Record2<Long, Integer>> availableHosts=create().
+    		select(HOST.ID,INSTANCE_NUM_PER_HOST).
+    		from(HOST)
+    		.leftOuterJoin(AGENT)
+            	.on(AGENT.ID.eq(HOST.AGENT_ID))
+    		.leftOuterJoin(INSTANCE_HOST_MAP)
         		.on(INSTANCE_HOST_MAP.HOST_ID.eq(HOST.ID))
         	.leftOuterJoin(INSTANCE)
         		.on(INSTANCE_HOST_MAP.INSTANCE_ID.eq(INSTANCE.ID))
         	 .where(HOST.STATE.in(CommonStatesConstants.ACTIVE, CommonStatesConstants.UPDATING_ACTIVE))
         	 .and(INSTANCE_HOST_MAP.STATE.eq(CommonStatesConstants.ACTIVE).or(INSTANCE_HOST_MAP.STATE.eq(CommonStatesConstants.INACTIVE).and(INSTANCE.STATE.eq(InstanceConstants.STATE_STARTING))))
+        	 .and(AGENT.ID.isNull().or(AGENT.STATE.eq(CommonStatesConstants.ACTIVE)))
+        	 .and(getHostQueryOptionCondition(options))
         	.groupBy(HOST.ID)
             .asTable("host");
         	cursor= create()
@@ -74,12 +77,8 @@ public class SimpleAllocatorDaoImpl extends AbstractJooqDao implements SimpleAll
                             .and(STORAGE_POOL_HOST_MAP.REMOVED.isNull()))
                     .join(STORAGE_POOL)
                         .on(STORAGE_POOL.ID.eq(STORAGE_POOL_HOST_MAP.STORAGE_POOL_ID))
-                    .leftOuterJoin(AGENT)
-                        .on(AGENT.ID.eq(HOST.AGENT_ID))
-                    .where(
-                        AGENT.ID.isNull().or(AGENT.STATE.eq(CommonStatesConstants.ACTIVE))
-                        .and(STORAGE_POOL.STATE.eq(CommonStatesConstants.ACTIVE))
-                        .and(getQueryOptionCondition(options)))
+                    .where(STORAGE_POOL.STATE.eq(CommonStatesConstants.ACTIVE))
+                        .and(getStorageQueryOptionCondition(options))
                     .orderBy(INSTANCE_NUM_PER_HOST.asc())
                     .fetchLazy();
         }else{
@@ -129,6 +128,37 @@ public class SimpleAllocatorDaoImpl extends AbstractJooqDao implements SimpleAll
 
         return condition == null ? DSL.trueCondition() : condition;
     }
+    protected Condition getHostQueryOptionCondition(QueryOptions options) {
+        Condition condition = null;
+
+        if ( options.getHosts().size() > 0 ) {
+            condition = append(condition, HOST.ID.in(options.getHosts()));
+        }
+
+        if ( options.getCompute() != null ) {
+            condition = append(condition, HOST.COMPUTE_FREE.ge(options.getCompute()));
+        }
+
+        if ( options.getKind() != null ) {
+            condition = append(condition,
+                    HOST.KIND.eq(options.getKind()));
+        }
+
+        if (options.getAccountId() != null) {
+            condition = append(condition, HOST.ACCOUNT_ID.eq(options.getAccountId()));
+        }
+
+        return condition == null ? DSL.trueCondition() : condition;
+    }
+    protected Condition getStorageQueryOptionCondition(QueryOptions options) {
+        Condition condition = null;
+        if ( options.getKind() != null ) {
+            condition = append(condition,
+            		STORAGE_POOL.KIND.eq(options.getKind()));
+        }
+        return condition == null ? DSL.trueCondition() : condition;
+    }
+
 
     protected Condition append(Condition base, Condition next) {
         if ( base == null ) {
