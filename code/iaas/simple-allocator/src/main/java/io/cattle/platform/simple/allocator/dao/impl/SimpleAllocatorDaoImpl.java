@@ -26,6 +26,7 @@ import org.jooq.Condition;
 import org.jooq.Cursor;
 import org.jooq.Field;
 import org.jooq.Record;
+import org.jooq.Record1;
 import org.jooq.Table;
 import org.jooq.Record2;
 import org.jooq.Record3;
@@ -54,15 +55,15 @@ public class SimpleAllocatorDaoImpl extends AbstractJooqDao implements SimpleAll
             AllocationCandidateCallback callback) {
         final Cursor<Record2<Long, Long>> cursor;
         if(hosts){
+        	Table<Record1<Long>>instanceHostMap=create().select(INSTANCE_HOST_MAP.HOST_ID).from(INSTANCE_HOST_MAP).join(INSTANCE).on(INSTANCE_HOST_MAP.INSTANCE_ID.eq(INSTANCE.ID))
+                	.where(INSTANCE.STATE.eq(InstanceConstants.STATE_STARTING).or(INSTANCE.STATE.eq(InstanceConstants.STATE_RUNNING))).asTable("instance_host_map");
         	Table<Record2<Long, Integer>> availableHosts=create().
     		select(HOST.ID,INSTANCE_NUM_PER_HOST).
     		from(HOST)
     		.leftOuterJoin(AGENT)
             	.on(AGENT.ID.eq(HOST.AGENT_ID))
-    		.leftOuterJoin(INSTANCE_HOST_MAP)
+    		.leftOuterJoin(instanceHostMap)
         		.on(INSTANCE_HOST_MAP.HOST_ID.eq(HOST.ID))
-        	.leftOuterJoin(INSTANCE)
-        		.on(INSTANCE_HOST_MAP.INSTANCE_ID.eq(INSTANCE.ID).and(INSTANCE_HOST_MAP.STATE.eq(CommonStatesConstants.ACTIVE).or(INSTANCE_HOST_MAP.STATE.eq(CommonStatesConstants.INACTIVE).and(INSTANCE.STATE.eq(InstanceConstants.STATE_STARTING)))))
         	 .where(HOST.STATE.in(CommonStatesConstants.ACTIVE, CommonStatesConstants.UPDATING_ACTIVE))
         	 .and(AGENT.ID.isNull().or(AGENT.STATE.eq(CommonStatesConstants.ACTIVE)))
         	 .and(getHostQueryOptionCondition(options))
