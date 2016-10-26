@@ -274,20 +274,6 @@ public class ServiceCreateValidationFilter extends AbstractDefaultResourceManage
             if (primaryName != null) {
                 ((Map<String, String>) primaryLaunchConfig).remove("name");
             }
-            Environment ev=objectManager.loadResource(Environment.class, service.getEnvironmentId());
-        	String name="io.rancher.stack_service.name="+ev.getName()+"/"+service.getName();
-            Map launchConfig=(Map) primaryLaunchConfig;
-            Map labels=(Map)launchConfig.get("labels");
-            Object sch=labels.get(ServiceUpgradeValidationFilter.SCH_LABEL_NE);
-            if(sch!=null){
-            	String schedulingString=sch.toString();
-            	if(!schedulingString.contains(name)){
-            		schedulingString=schedulingString+","+name;
-            		labels.put(ServiceUpgradeValidationFilter.SCH_LABEL_NE, schedulingString);
-            	}
-            }else{
-                labels.put(ServiceUpgradeValidationFilter.SCH_LABEL_NE, name );
-            }
             allLaunchConfigs.add((Map<String, Object>) primaryLaunchConfig);
         }
 
