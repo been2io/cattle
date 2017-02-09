@@ -22,6 +22,7 @@ public class SkipServiceLookup implements ServiceLookup {
     @Inject
     ObjectManager objMgr;
 
+
     @Override
     public Collection<? extends Service> getServices(Object obj) {
         Long accountId = null;

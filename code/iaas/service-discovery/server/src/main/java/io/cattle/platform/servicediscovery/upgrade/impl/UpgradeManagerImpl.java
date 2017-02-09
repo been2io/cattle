@@ -26,6 +26,7 @@ import io.cattle.platform.object.process.ObjectProcessManager;
 import io.cattle.platform.object.resource.ResourceMonitor;
 import io.cattle.platform.object.resource.ResourcePredicate;
 import io.cattle.platform.object.util.DataAccessor;
+import io.cattle.platform.object.util.ObjectUtils;
 import io.cattle.platform.process.common.util.ProcessUtils;
 import io.cattle.platform.servicediscovery.api.dao.ServiceExposeMapDao;
 import io.cattle.platform.servicediscovery.deployment.DeploymentManager;
@@ -626,13 +627,26 @@ public class UpgradeManagerImpl implements UpgradeManager {
                         objectProcessMgr.scheduleProcessInstanceAsync(InstanceConstants.PROCESS_REMOVE,
                                 instance, null);
                     } else if (!instance.getState().equalsIgnoreCase(InstanceConstants.STATE_STOPPED)) {
+                    	Map stopConfig=new HashMap();
+                    	stopConfig.put("timeout", 30);
                         objectProcessMgr.scheduleProcessInstanceAsync(InstanceConstants.PROCESS_STOP,
-                                instance, null);
+                                instance, stopConfig);
                         toWait.add(instance);
                     }
                 }
                 for (Instance instance : toWait) {
-                    resourceMntr.waitForState(instance, InstanceConstants.STATE_STOPPED);
+                	final String desiredState=InstanceConstants.STATE_STOPPED;
+                    resourceMntr.waitFor(instance,35*1000L,  new ResourcePredicate<Instance>() {
+                        @Override
+                        public boolean evaluate(Instance obj) {
+                            return desiredState.equals(ObjectUtils.getState(obj));
+                        }
+
+                        @Override
+                        public String getMessage() {
+                            return "state to equal " + desiredState;
+                        }
+                    });
                 }
             }
         });
